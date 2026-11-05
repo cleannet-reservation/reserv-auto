@@ -214,6 +214,12 @@ function Clients() {
     e.preventDefault()
     await supabase.from('clients').insert({ name: n, code: Math.random().toString(36).slice(2, 8).toUpperCase() }); setN(''); load()
   }
+  async function delClient(c) {
+    if (!confirm(`Supprimer ${c.name} ? Ses camions et ses réservations seront supprimés. Cette action est définitive.`)) return
+    const { error } = await supabase.from('clients').delete().eq('id', c.id)
+    if (error) alert('Suppression impossible : ' + error.message)
+    load()
+  }
   async function addTruck(c) {
     const t = tp[c.id]; if (!t?.plate) return
     await supabase.from('trucks').insert({ client_id: c.id, plate: t.plate.toUpperCase(), type: t.type || null }); setTp({ ...tp, [c.id]: {} }); load()
@@ -228,5 +234,6 @@ function Clients() {
       <div className="row"><input placeholder="Immatriculation" value={tp[c.id]?.plate || ''} onChange={e => setTp({ ...tp, [c.id]: { ...tp[c.id], plate: e.target.value } })} />
         <input placeholder="Type (porteur, semi…)" value={tp[c.id]?.type || ''} onChange={e => setTp({ ...tp, [c.id]: { ...tp[c.id], type: e.target.value } })} />
         <button className="sm" onClick={() => addTruck(c)}>Ajouter le camion</button></div>
+      <div><button className="ghost sm" style={{ color: '#B3261E' }} onClick={() => delClient(c)}>Supprimer le client</button></div>
     </div>)}</>
 }
