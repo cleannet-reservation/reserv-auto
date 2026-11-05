@@ -105,8 +105,8 @@ function Login() {
   const [email, setEmail] = useState(''), [pw, setPw] = useState(''), [err, setErr] = useState('')
   async function go(e) {
     e.preventDefault()
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw })
-    if (error) setErr('E-mail ou mot de passe incorrect.')
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw })
+    if (error) setErr('Erreur : ' + error.message)
   }
   return <form className="card" onSubmit={go}><h2>Connexion admin</h2>
     <label>E-mail<input type="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
