@@ -49,3 +49,12 @@ declare cid uuid; bid uuid; gid uuid; d date; per text; s2 uuid; begin
 create or replace function client_cancel(p_code text,p_booking uuid) returns void language sql security definer set search_path=public as $$
  update bookings set status='annule' where status in ('demande','confirme') and group_id=(select b.group_id from bookings b join clients c on c.id=b.client_id where b.id=p_booking and c.code=p_code) $$;
 grant execute on function client_login,client_slots,client_bookings,client_book,client_cancel to anon, authenticated;
+
+-- Le client ajoute lui-même ses camions
+create or replace function client_add_truck(p_code text,p_plate text,p_type text) returns void language plpgsql security definer set search_path=public as $$
+declare cid uuid; begin
+ select id into cid from clients where code=p_code; if cid is null then raise exception 'Code invalide'; end if;
+ if length(trim(p_plate))=0 then raise exception 'Plaque vide'; end if;
+ if exists(select 1 from trucks where client_id=cid and plate=upper(trim(p_plate))) then raise exception 'Déjà enregistré'; end if;
+ insert into trucks(client_id,plate,type) values(cid,upper(trim(p_plate)),nullif(trim(p_type),'')); end $$;
+grant execute on function client_add_truck(text,text,text) to anon, authenticated;

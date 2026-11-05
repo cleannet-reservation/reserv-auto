@@ -41,10 +41,11 @@ function Client() {
       <button>Ouvrir mon planning</button>
     </form>)
   const out = () => { try { localStorage.removeItem('cn_code') } catch {} ; setCode(''); setMe(null) }
-  return <ClientHome me={me} code={code.trim()} out={out} />
+  return <ClientHome me={me} code={code.trim()} out={out} reload={() => login(code)} />
 }
 
-function ClientHome({ me, code, out }) {
+function ClientHome({ me, code, out, reload }) {
+  const [np, setNp] = useState({ plate: '', type: '' }), [tm, setTm] = useState('')
   const [slots, setSlots] = useState([]), [bk, setBk] = useState([]), [msg, setMsg] = useState('')
   const [f, setF] = useState({ trucks: [], slot: '', place: '', rec: 'none', notes: '' })
   const set = k => e => setF({ ...f, [k]: e.target.value })
@@ -55,6 +56,12 @@ function ClientHome({ me, code, out }) {
     setBk((await supabase.rpc('client_bookings', { p_code: code })).data || [])
   }, [code])
   useEffect(() => { load() }, [load])
+  async function addTruck(e) {
+    e.preventDefault(); setTm('')
+    const { error } = await supabase.rpc('client_add_truck', { p_code: code, p_plate: np.plate, p_type: np.type })
+    if (error) { setTm('Impossible d’ajouter ce camion (plaque déjà enregistrée ?).'); return }
+    setNp({ plate: '', type: '' }); reload()
+  }
   async function book(e) {
     e.preventDefault(); setMsg('')
     if (!f.trucks.length) { setMsg('err:Choisissez au moins un camion.'); return }
@@ -65,9 +72,15 @@ function ClientHome({ me, code, out }) {
   const cancel = async id => { await supabase.rpc('client_cancel', { p_code: code, p_booking: id }); load() }
   return <>
     <div className="row"><h2>{me.name}</h2><button className="ghost sm" onClick={out}>Changer de compte</button></div>
+    <form className="card" onSubmit={addTruck}>
+      <h3>Mes camions</h3>
+      {me.trucks.map(t => <div key={t.id}><span className="plate">{t.plate}</span> {t.type}</div>)}
+      <div className="row"><input required placeholder="Plaque (ex. AB-123-CD)" value={np.plate} onChange={e => setNp({ ...np, plate: e.target.value })} /><input placeholder="Type (porteur, semi…)" value={np.type} onChange={e => setNp({ ...np, type: e.target.value })} /><button className="sm">Ajouter</button></div>
+      {tm && <p className="err">{tm}</p>}
+    </form>
     <form className="card" onSubmit={book}>
       <h3>Planifier un nettoyage</h3>
-      {!me.trucks.length ? <p>Aucun camion enregistré. Contactez CleanNet pour en ajouter.</p>
+      {!me.trucks.length ? <p>Ajoutez d’abord un camion dans « Mes camions » ci-dessus.</p>
         : !slots.length ? <p>Aucun créneau disponible pour le moment. Contactez CleanNet.</p> : <>
         <fieldset style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 6 }}><legend style={{ fontWeight: 500 }}>Camions à nettoyer</legend>{me.trucks.map(t => <label key={t.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 400 }}><input type="checkbox" checked={f.trucks.includes(t.id)} onChange={() => setF({ ...f, slot: '', trucks: f.trucks.includes(t.id) ? f.trucks.filter(x => x !== t.id) : [...f.trucks, t.id] })} /><span className="plate">{t.plate}</span> {t.type}</label>)}</fieldset>
         <p className="tag" style={{ margin: 0 }}>Jusqu’à {MAX} camions par demi-journée. Au-delà, une journée entière est réservée.</p>
