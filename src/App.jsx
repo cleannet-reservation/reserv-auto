@@ -22,7 +22,10 @@ export default function App() {
 
 /* ---------- Côté client pro ---------- */
 function Client() {
-  const [code, setCode] = useState(() => { try { return localStorage.getItem('cn_code') || '' } catch { return '' } })
+  const [code, setCode] = useState(() => {
+    if (location.hash.startsWith('#/c/')) return decodeURIComponent(location.hash.slice(4))
+    try { return localStorage.getItem('cn_code') || '' } catch { return '' }
+  })
   const [me, setMe] = useState(null)
   const [err, setErr] = useState('')
   async function login(c) {
@@ -40,7 +43,7 @@ function Client() {
       {err && <p className="err">{err}</p>}
       <button>Ouvrir mon planning</button>
     </form>)
-  const out = () => { try { localStorage.removeItem('cn_code') } catch {} ; setCode(''); setMe(null) }
+  const out = () => { try { localStorage.removeItem('cn_code') } catch {} ; history.replaceState(null, '', location.pathname + location.search); setCode(''); setMe(null) }
   return <ClientHome me={me} code={code.trim()} out={out} reload={() => login(code)} />
 }
 
@@ -214,6 +217,10 @@ function Clients() {
     e.preventDefault()
     await supabase.from('clients').insert({ name: n, code: Math.random().toString(36).slice(2, 8).toUpperCase() }); setN(''); load()
   }
+  async function copyLink(c) {
+    const url = `${location.origin}/#/c/${c.code}`
+    try { await navigator.clipboard.writeText(url); alert('Lien copié :\n' + url) } catch { prompt('Copie ce lien :', url) }
+  }
   async function delClient(c) {
     if (!confirm(`Supprimer ${c.name} ? Ses camions et ses réservations seront supprimés. Cette action est définitive.`)) return
     const { error } = await supabase.from('clients').delete().eq('id', c.id)
@@ -234,6 +241,6 @@ function Clients() {
       <div className="row"><input placeholder="Immatriculation" value={tp[c.id]?.plate || ''} onChange={e => setTp({ ...tp, [c.id]: { ...tp[c.id], plate: e.target.value } })} />
         <input placeholder="Type (porteur, semi…)" value={tp[c.id]?.type || ''} onChange={e => setTp({ ...tp, [c.id]: { ...tp[c.id], type: e.target.value } })} />
         <button className="sm" onClick={() => addTruck(c)}>Ajouter le camion</button></div>
-      <div><button className="ghost sm" style={{ color: '#B3261E' }} onClick={() => delClient(c)}>Supprimer le client</button></div>
+      <div className="row" style={{ justifyContent: 'flex-start' }}><button className="sm" onClick={() => copyLink(c)}>Copier le lien personnel</button><button className="ghost sm" style={{ color: '#B3261E' }} onClick={() => delClient(c)}>Supprimer le client</button></div>
     </div>)}</>
 }
